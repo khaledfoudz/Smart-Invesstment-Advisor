@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Features from "./pages/Features";
 import NotFound from "./pages/NotFound";
 
+
 const queryClient = new QueryClient();
 
 const router = createBrowserRouter(
@@ -19,7 +20,9 @@ const router = createBrowserRouter(
     { path: "*", element: <NotFound /> },
   ],
   {
-    // No future flags needed; remove unsupported v7_startTransition property.
+    future: {
+      v7_startTransition: true,
+    },
   }
 );
 

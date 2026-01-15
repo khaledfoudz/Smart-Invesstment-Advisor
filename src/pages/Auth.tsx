@@ -54,12 +54,22 @@ const Auth = () => {
         password: formData.password,
       });
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const res = await supabase.auth.signInWithPassword({
         email: validated.email,
         password: validated.password,
       });
 
+      // Log full response for debugging (HTTP status / body) when troubleshooting 400 errors
+      // Remove or lower verbosity in production.
+      // eslint-disable-next-line no-console
+      console.debug("supabase.signInWithPassword response:", res);
+
+      const { error } = res;
+
       if (error) {
+        // If the error has an HTTP status or details, log them for easier debugging
+        // eslint-disable-next-line no-console
+        console.error("Login error details:", error);
         if (error.message.includes("Invalid login credentials")) {
           toast({
             title: "Login failed",
@@ -100,7 +110,7 @@ const Auth = () => {
     try {
       const validated = authSchema.parse(formData);
 
-      const { error } = await supabase.auth.signUp({
+      const res = await supabase.auth.signUp({
         email: validated.email,
         password: validated.password,
         options: {
@@ -110,6 +120,11 @@ const Auth = () => {
           },
         },
       });
+      // Log full response for debugging when signup returns unexpected errors
+      // eslint-disable-next-line no-console
+      console.debug("supabase.signUp response:", res);
+
+      const { error } = res;
 
       if (error) {
         if (error.message.includes("User already registered")) {
