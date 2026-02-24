@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations_supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,11 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
+import api from "@/lib/axios";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email address" }).max(255),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100),
-  username: z.string().trim().min(3, { message: "Username must be at least 3 characters" }).max(50).optional(),
+  name: z.string().trim().min(3, { message: "Name must be at least 3 characters" }).max(50).optional(),
 });
 
 const Auth = () => {
@@ -23,86 +23,49 @@ const Auth = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    username: "",
+    name: "",
   });
 
-  useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && event === "SIGNED_IN") {
-        navigate("/");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
+  // Handle login form submission
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const validated = authSchema.omit({ username: true }).parse({
+      const validated = authSchema.omit({ name: true }).parse({
         email: formData.email,
         password: formData.password,
       });
 
-      const res = await supabase.auth.signInWithPassword({
-        email: validated.email,
-        password: validated.password,
-      });
+      const res = await api.post("/api/auth/login", {
+      email: validated.email,
+      password: validated.password,
+    });
 
-      // Log full response for debugging (HTTP status / body) when troubleshooting 400 errors
-      // Remove or lower verbosity in production.
-      // eslint-disable-next-line no-console
-      console.debug("supabase.signInWithPassword response:", res);
+    const { token, user } = res.data;
 
-      const { error } = res;
-
-      if (error) {
-        // If the error has an HTTP status or details, log them for easier debugging
-        // eslint-disable-next-line no-console
-        console.error("Login error details:", error);
-        if (error.message.includes("Invalid login credentials")) {
-          toast({
-            title: "Login failed",
-            description: "Invalid email or password. Please try again.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Login failed",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-        return;
-      }
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
 
       toast({
         title: "Welcome back!",
         description: "You've successfully logged in.",
       });
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        toast({
-          title: "Validation error",
-          description: err.errors[0].message,
-          variant: "destructive",
-        });
-      }
+
+      navigate("/");
+
+    } catch (err: any) {
+      toast({
+        title: "Login failed",
+        description: err.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle signup form submission
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -110,51 +73,29 @@ const Auth = () => {
     try {
       const validated = authSchema.parse(formData);
 
-      const res = await supabase.auth.signUp({
-        email: validated.email,
-        password: validated.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            username: validated.username,
-          },
-        },
-      });
-      // Log full response for debugging when signup returns unexpected errors
-      // eslint-disable-next-line no-console
-      console.debug("supabase.signUp response:", res);
+      const res = await api.post("/api/auth/signup", {
+      email: validated.email,
+      password: validated.password,
+      name: validated.name,
+    });
 
-      const { error } = res;
+    const { token, user } = res.data;
 
-      if (error) {
-        if (error.message.includes("User already registered")) {
-          toast({
-            title: "Account exists",
-            description: "This email is already registered. Please login instead.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Signup failed",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
       toast({
         title: "Account created!",
         description: "Welcome to your investment platform.",
       });
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        toast({
-          title: "Validation error",
-          description: err.errors[0].message,
-          variant: "destructive",
-        });
-      }
+
+      navigate("/");
+
+    } catch (err: any) {
+      toast({
+        title: "Signup failed",
+        description: err.response?.data?.message || "Something went wrong",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -186,9 +127,8 @@ const Auth = () => {
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
+                  <Label>Email</Label>
                   <Input
-                    id="login-email"
                     type="email"
                     placeholder="you@example.com"
                     value={formData.email}
@@ -197,10 +137,10 @@ const Auth = () => {
                     disabled={loading}
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
+                  <Label>Password</Label>
                   <Input
-                    id="login-password"
                     type="password"
                     placeholder="••••••••"
                     value={formData.password}
@@ -209,6 +149,7 @@ const Auth = () => {
                     disabled={loading}
                   />
                 </div>
+
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Login
@@ -219,21 +160,20 @@ const Auth = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-username">Username</Label>
+                  <Label>Username</Label>
                   <Input
-                    id="signup-username"
                     type="text"
                     placeholder="johndoe"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                     disabled={loading}
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label>Email</Label>
                   <Input
-                    id="signup-email"
                     type="email"
                     placeholder="you@example.com"
                     value={formData.email}
@@ -242,10 +182,10 @@ const Auth = () => {
                     disabled={loading}
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label>Password</Label>
                   <Input
-                    id="signup-password"
                     type="password"
                     placeholder="••••••••"
                     value={formData.password}
@@ -254,6 +194,7 @@ const Auth = () => {
                     disabled={loading}
                   />
                 </div>
+
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Account
