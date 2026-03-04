@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 4000;
 
 // MIDDLEWARES
 app.use(cors({
-  origin: 'http://localhost:5000', // vite port
+  origin: process.env.FRONTEND_URL, // vite port
   credentials: true
 }));
 

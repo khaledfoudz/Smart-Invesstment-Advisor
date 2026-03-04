@@ -1,5 +1,5 @@
 import express from 'express';
-import bcrypt from 'bcrypt';
+import bcryptjs from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import { pool } from '../db.js';
 import jwt from 'jsonwebtoken'; // ✅ إضافة jwt عشان نعمل token
@@ -35,7 +35,7 @@ router.post('/signup',
 
     try{ 
         //hash password 
-        const hashedPassword = await bcrypt.hash(req.body.password, 8);
+        const hashedPassword = await bcryptjs.hash(req.body.password, 8);
         //add user to database
         const {name,email} = req.body;
         const newUser = await pool.query(
@@ -74,7 +74,7 @@ router.post('/login', async (req, res) => {
         }
         const user = userQuery.rows[0];
 
-        const validPassword = await bcrypt.compare(password, user.password);
+        const validPassword = await bcryptjs.compare(password, user.password);
         if(!validPassword){
             return res.status(400).json({message: 'Invalid email or password'});
         }

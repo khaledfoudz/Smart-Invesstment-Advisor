@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import api from "@/lib/axios";
+import { AxiosError } from "axios";
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email address" }).max(255),
@@ -54,10 +55,11 @@ const Auth = () => {
 
       navigate("/");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message: string }>;
       toast({
         title: "Login failed",
-        description: err.response?.data?.message || "Something went wrong",
+        description: error.response?.data?.message || "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -90,10 +92,11 @@ const Auth = () => {
 
       navigate("/");
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message: string }>;
       toast({
         title: "Signup failed",
-        description: err.response?.data?.message || "Something went wrong",
+        description: error.response?.data?.message || "Something went wrong",
         variant: "destructive",
       });
     } finally {

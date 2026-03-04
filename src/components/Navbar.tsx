@@ -61,7 +61,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="text-xl font-bold">
-            <span className="text-gradient">SmartInvest</span>
+            <span className="text-gradient">SMIA</span>
           </Link>
 
           {/* Desktop Navigation */}

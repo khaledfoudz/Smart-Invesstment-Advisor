@@ -77,7 +77,7 @@ const Features = () => {
           <div className="text-center mb-16 animate-fade-in">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
               Powerful Features for{" "}
-              <span className="text-gradient">Smart Investing</span>
+              <span className="text-gradient">SMIA</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Everything you need to make informed investment decisions and grow your wealth confidently

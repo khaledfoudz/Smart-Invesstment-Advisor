@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    container_name: smia_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: investment_advisor
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./smia_database.sql:/docker-entrypoint-initdb.d/smia_database.sql:ro
+
+  backend:
+    build: ./backend
+    container_name: smia_backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASSWORD: 1234
+      DB_NAME: investment_advisor
+      DB_PORT: 5432
+      PORT: 4000
+    depends_on:
+      db:
+        condition: service_started
+
+  frontend:
+    build: .
+    container_name: smia_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
