@@ -65,56 +65,81 @@ const Questionnaire = () => {
   });
 
   const onSubmit = async (data: QuestionnaireFormData) => {
-    setLoading(true);
-    try {
-      
-      const token = localStorage.getItem("token");
-      const userStr = localStorage.getItem("user");
-      const user = userStr ? JSON.parse(userStr) : null;
+  setLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    const userStr = localStorage.getItem("user");
+    const user = userStr ? JSON.parse(userStr) : null;
 
-      if (!token || !user?.id) {
-        toast({
-          title: "Authentication Error",
-          description: "Please log in to continue",
-          variant: "destructive",
-        });
-        navigate("/auth");
-        return;
-      }
-
-      
-      await api.post("/api/questionnaire", {
-        age: data.age,
-        occupation: data.occupation,
-        location: data.location || null,
-        monthly_income: data.monthly_income,
-        current_savings: data.current_savings,
-        monthly_expenses: data.monthly_expenses,
-        existing_investments: data.existing_investments || null,
-        investment_objective: data.investment_objective,
-        investment_goal_description: data.investment_goal_description || null,
-        investment_horizon: data.investment_horizon,
-        risk_tolerance: data.risk_tolerance,
-        risk_reaction: data.risk_reaction,
-      });
-
+    if (!token || !user?.id) {
       toast({
-        title: "Success!",
-        description: "Generating your personalized investment recommendations...",
-      });
-
-      // Navigate to recommendations page with questionnaire data
-      navigate("/recommendations", { state: { questionnaireData: data } });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || error.message || "Something went wrong",
+        title: "Authentication Error",
+        description: "Please log in to continue",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      navigate("/auth");
+      return;
     }
-  };
+
+    await api.post("/api/questionnaire", {
+      age: data.age,
+      occupation: data.occupation,
+      location: data.location || null,
+      monthly_income: data.monthly_income,
+      current_savings: data.current_savings,
+      monthly_expenses: data.monthly_expenses,
+      existing_investments: data.existing_investments || null,
+      investment_objective: data.investment_objective,
+      investment_goal_description: data.investment_goal_description || null,
+      investment_horizon: data.investment_horizon,
+      risk_tolerance: data.risk_tolerance,
+      risk_reaction: data.risk_reaction,
+    });
+
+    // ✅ Map questionnaire values to model-expected values
+    const riskMap: Record<string, string> = {
+      conservative: "Low",
+      balanced:     "Medium",
+      aggressive:   "High",
+    };
+
+    const horizonMap: Record<string, string> = {
+      short_term:  "Short",
+      medium_term: "Medium",
+      long_term:   "Long",
+    };
+
+    const modelInput = {
+      age: data.age,
+      salary: data.monthly_income,
+      savings: data.current_savings,
+      investment_value: data.current_savings,
+      risk_tolerance: riskMap[data.risk_tolerance],
+      investment_horizon: horizonMap[data.investment_horizon],
+    };
+
+    toast({
+      title: "Success!",
+      description: "Generating your personalized investment recommendations...",
+    });
+
+    navigate("/recommendations", {
+      state: {
+        questionnaireData: data,
+        modelInput,          // ✅ pass mapped data to Recommendations
+      },
+    });
+
+  } catch (error: any) {
+    toast({
+      title: "Error",
+      description: error.response?.data?.message || error.message || "Something went wrong",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const nextStep = async () => {
     const fields = getFieldsForStep(step);
@@ -352,6 +377,7 @@ const Questionnaire = () => {
                             <RadioGroup
                               onValueChange={field.onChange}
                               defaultValue={field.value}
+                              value={field.value}
                               className="flex flex-col space-y-2"
                             >
                               <div className="flex items-center space-x-2">
@@ -382,7 +408,7 @@ const Questionnaire = () => {
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
-                              
+                              value={field.value}
                               className="flex flex-col space-y-2"
                             >
                               <div className="flex items-center space-x-2">
