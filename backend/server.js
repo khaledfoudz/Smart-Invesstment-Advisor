@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import investmentRoutes from './routes/investments.js';
 import authRoutes from './routes/auth.js';
 import questionnaireRoutes from './routes/questionnaire.js';
+import marketRoutes from './routes/market.js';
 dotenv.config();
 
 const app = express();
@@ -21,7 +22,7 @@ app.use(express.json());
 app.use('/api', investmentRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', questionnaireRoutes);
-
+app.use('/api/market', marketRoutes);
 // TEST ROUTE
 app.get('/', (req, res) => {
   res.send('API is running');

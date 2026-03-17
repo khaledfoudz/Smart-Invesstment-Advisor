@@ -2,7 +2,7 @@ import express from 'express';
 import bcryptjs from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import { pool } from '../db.js';
-import jwt from 'jsonwebtoken'; // ✅ إضافة jwt عشان نعمل token
+import jwt from 'jsonwebtoken'; 
 
 const router = express.Router();
 
@@ -41,23 +41,20 @@ router.post('/signup',
         const newUser = await pool.query(
             'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email', 
             [name, email, hashedPassword]
-        ); // ✅ إضافة RETURNING عشان ناخد بيانات المستخدم بعد الحفظ
+        );
+        const user = newUser.rows[0];
 
-        const user = newUser.rows[0]; // ✅ المستخدم اللي اتخزن في DB
-
-        // ✅ Generate JWT token بعد التسجيل
         const token = jwt.sign(
             { id: user.id, email: user.email },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
-
-        // ✅ رجع token + user عشان الفرونت ايند يستخدمهم
+ 
         res.status(200).json({ token, user });
 
     }
    catch(error){
-    console.error("Signup Error:", error); // ✅ اضف دي عشان تشوف التفاصيل
+    console.error("Signup Error:", error); 
     res.status(500).json({message: 'Internal server error'});
 }
 
