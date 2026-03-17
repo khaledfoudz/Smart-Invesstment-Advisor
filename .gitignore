@@ -1,16 +1,47 @@
+# Dependencies
 node_modules/
+venv/
+
+# Build outputs
 /dist/
 /build/
-.vscode/
+
+# Environment files
 .env
 .env.local
 .env.*.local
+
+# Logs
 *.log
-.DS_Store
-/.idea/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# OS files
+.DS_Store
+/.idea/
+.vscode/
+
+# Coverage
 coverage/
+
+# ML packages cache
 backend/ml/packages/
-venv/
+
+# ===== ADD THESE =====
+# Large ML model files (store externally e.g. Google Drive / S3)
+*.pkl
+*.pickle
+
+# Large dataset files
+*.csv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python egg
+*.egg-info/
+.eggs/
