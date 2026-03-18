@@ -88,6 +88,13 @@ const Navbar = () => {
               </Link>
             ) : (
               <div className="flex items-center gap-4">
+                {/* NEW DASHBOARD BUTTON */}
+                <Link to="/dashboard">
+                  <Button size="sm" className="rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground border-transparent">
+                    Dashboard
+                  </Button>
+                </Link>
+                
                 <Button
                   onClick={handleLogout}
                   variant="outline"
@@ -137,17 +144,26 @@ const Navbar = () => {
                   </Button>
                 </Link>
               ) : (
-                <Button
-                  onClick={() => {
-                    handleLogout();
-                    setMobileMenuOpen(false);
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="w-full rounded-lg"
-                >
-                  Logout
-                </Button>
+                <div className="flex flex-col gap-2">
+                  {/* NEW MOBILE DASHBOARD BUTTON */}
+                  <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                    <Button size="sm" className="w-full rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
+                      Dashboard
+                    </Button>
+                  </Link>
+                  
+                  <Button
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="w-full rounded-lg"
+                  >
+                    Logout
+                  </Button>
+                </div>
               )}
             </div>
           </div>
