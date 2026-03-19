@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "0.0.0.0",
     port: 5001
   },
   build: {
