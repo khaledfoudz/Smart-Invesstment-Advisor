@@ -152,7 +152,7 @@ const Recommendations = () => {
         </Card>
 
         <div className="mt-6 flex gap-4">
-          <Button onClick={() => navigate("/")}>Go to Dashboard</Button>
+          <Button onClick={() => navigate("/dashboard")}>Go to Dashboard</Button>
         </div>
       </div>
     </div>
