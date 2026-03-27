@@ -1,5 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import dashboardTablet from "@/assets/dashboard-tablet.jpg";
+import PriceWidget from "@/components/PriceWidget";
 
 const features = [
   "Real-time portfolio tracking and performance metrics",
@@ -73,6 +74,7 @@ const DashboardSection = () => {
                       {i}K
                     </div>
                   ))}
+                  
                 </div>
                 <div>
                   <div className="font-semibold text-foreground">Trusted by 10,000+ investors</div>
