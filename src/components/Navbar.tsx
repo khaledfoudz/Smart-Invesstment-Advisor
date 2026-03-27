@@ -95,6 +95,12 @@ const Navbar = () => {
                   </Button>
                 </Link>
                 
+                <Link to="/profile">  {/* ← ADD THIS LINK */}
+                  <Button size="sm" variant="outline" className="rounded-lg border-primary/20 hover:bg-primary/10">
+                    Profile
+                  </Button>
+                </Link>
+                
                 <Button
                   onClick={handleLogout}
                   variant="outline"
@@ -149,6 +155,12 @@ const Navbar = () => {
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                     <Button size="sm" className="w-full rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground">
                       Dashboard
+                    </Button>
+                  </Link>
+                  
+                  <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>  
+                    <Button size="sm" variant="outline" className="rounded-lg border-primary/20 hover:bg-primary/10">
+                      Profile
                     </Button>
                   </Link>
                   

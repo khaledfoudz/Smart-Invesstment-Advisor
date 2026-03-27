@@ -28,9 +28,9 @@ const Footer = () => {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-xl">SI</span>
+                <span className="text-primary-foreground font-bold text-xl">S</span>
               </div>
-              <span className="text-xl font-bold text-foreground">Smart Invest</span>
+              <span className="text-xl font-bold text-foreground">SMIA</span>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               AI-powered investment insights for the modern investor.

@@ -5,6 +5,8 @@ import investmentRoutes from './routes/investments.js';
 import authRoutes from './routes/auth.js';
 import questionnaireRoutes from './routes/questionnaire.js';
 import predictRouter from './routes/predict.js';
+import recommendationsRoute from './routes/recommendations.js'; 
+import userRoutes from './routes/profile.js';
 
 dotenv.config();
 
@@ -24,6 +26,8 @@ app.use('/api', investmentRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api', questionnaireRoutes);
 app.use('/api', predictRouter);
+app.use('/api', recommendationsRoute);
+app.use('/api/user', userRoutes);
 
 // TEST ROUTE
 app.get('/', (req, res) => {
