@@ -53,6 +53,10 @@ const Questionnaire = () => {
   const form = useForm<QuestionnaireFormData>({
     resolver: zodResolver(questionnaireSchema),
     defaultValues: {
+      age: undefined,
+      monthly_income: undefined,
+      current_savings: undefined,
+      monthly_expenses: undefined,
       occupation: "",
       location: "",
       existing_investments: "",
