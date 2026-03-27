@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
@@ -14,6 +12,11 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./smia_database.sql:/docker-entrypoint-initdb.d/smia_database.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d investment_advisor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   ml:
     build: ./backend/ml
@@ -36,19 +39,41 @@ services:
       DB_PORT: 5432
       PORT: 4000
       ML_SERVICE_URL: http://ml:8000
-      FRONTEND_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:5001
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
       ml:
         condition: service_started
 
+  # --- PRODUCTION frontend (built Nginx bundle) ---
   frontend:
-    build: .
+    profiles: ["prod"]
+    build:
+      context: .
+      args:
+        VITE_API_URL: http://localhost:4000
     container_name: smia_frontend
     restart: always
     ports:
       - "3000:80"
+    depends_on:
+      - backend
+
+  # --- DEV frontend (Vite HMR, live reload) ---
+  frontend-dev:
+    profiles: ["dev"]
+    image: node:20-alpine
+    container_name: smia_frontend_dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "5001:5001"
+    environment:
+      VITE_API_URL: http://localhost:4000
+    command: sh -c "npm install && npm run dev"
     depends_on:
       - backend
 
