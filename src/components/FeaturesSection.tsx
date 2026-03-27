@@ -1,5 +1,6 @@
 import { Brain, TrendingUp, DollarSign } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import PriceWidget from "@/components/PriceWidget" ;
 
 const features = [
   {

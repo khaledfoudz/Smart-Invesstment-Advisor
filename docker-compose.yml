@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   db:
     image: postgres:15
@@ -13,6 +15,13 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./smia_database.sql:/docker-entrypoint-initdb.d/smia_database.sql:ro
 
+  ml:
+    build: ./backend/ml
+    container_name: smia_ml
+    restart: always
+    ports:
+      - "8000:8000"
+
   backend:
     build: ./backend
     container_name: smia_backend
@@ -27,9 +36,10 @@ services:
       DB_NAME: investment_advisor
       DB_PORT: 5432
       PORT: 4000
-      JWT_SECRET: my_super_secret_jwt_key_123
     depends_on:
       db:
+        condition: service_started
+      ml:
         condition: service_started
 
   frontend:
