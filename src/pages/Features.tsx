@@ -23,7 +23,7 @@ const Features = () => {
     {
       icon: TrendingUp,
       title: "Real-Time Analytics",
-      description: <PriceWidget />  ,
+      description: "Track your portfolio performance with live data updates, interactive charts, and comprehensive market analysis tools.",
     },
     {
       icon: Lock,
