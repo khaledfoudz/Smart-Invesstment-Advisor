@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,7 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
-import api from "@/lib/axios"; 
+import api from "@/lib/axios";
 
 const questionnaireSchema = z.object({
   age: z.coerce.number().min(18, "Must be at least 18 years old").max(100),
@@ -50,6 +50,13 @@ const Questionnaire = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const occupationRef = useRef<HTMLInputElement>(null);
+  const locationRef = useRef<HTMLInputElement>(null);
+  const savingsRef = useRef<HTMLInputElement>(null);
+  const expensesRef = useRef<HTMLInputElement>(null);
+  const existingInvestmentsRef = useRef<HTMLTextAreaElement>(null);
+  const goalDescRef = useRef<HTMLInputElement>(null);
+
   const form = useForm<QuestionnaireFormData>({
     resolver: zodResolver(questionnaireSchema),
     defaultValues: {
@@ -63,112 +70,100 @@ const Questionnaire = () => {
       investment_objective: "wealth_growth",
       investment_goal_description: "",
       investment_horizon: "medium_term",
-      risk_tolerance: "balanced",
+      risk_tolerance: undefined as any,
       risk_reaction: "",
     },
   });
 
-  const onSubmit = async (data: QuestionnaireFormData) => {
-  setLoading(true);
-  try {
-    const token = localStorage.getItem("token");
-    const userStr = localStorage.getItem("user");
-    const user = userStr ? JSON.parse(userStr) : null;
-
-    if (!token || !user?.id) {
-      toast({
-        title: "Authentication Error",
-        description: "Please log in to continue",
-        variant: "destructive",
-      });
-      navigate("/auth");
-      return;
+  const getFieldsForStep = (currentStep: number): (keyof QuestionnaireFormData)[] => {
+    switch (currentStep) {
+      case 1: return ["age", "occupation", "location"];
+      case 2: return ["monthly_income", "current_savings", "monthly_expenses", "existing_investments"];
+      case 3: return ["investment_objective", "investment_goal_description", "investment_horizon"];
+      case 4: return ["risk_tolerance", "risk_reaction"];
+      default: return [];
     }
-
-    await api.post("/api/questionnaire", {
-      age: data.age,
-      occupation: data.occupation,
-      location: data.location || null,
-      monthly_income: data.monthly_income,
-      current_savings: data.current_savings,
-      monthly_expenses: data.monthly_expenses,
-      existing_investments: data.existing_investments || null,
-      investment_objective: data.investment_objective,
-      investment_goal_description: data.investment_goal_description || null,
-      investment_horizon: data.investment_horizon,
-      risk_tolerance: data.risk_tolerance,
-      risk_reaction: data.risk_reaction,
-    });
-
-    // ✅ Map questionnaire values to model-expected values
-    const riskMap: Record<string, string> = {
-      conservative: "Low",
-      balanced:     "Medium",
-      aggressive:   "High",
-    };
-
-    const horizonMap: Record<string, string> = {
-      short_term:  "Short",
-      medium_term: "Medium",
-      long_term:   "Long",
-    };
-
-    const modelInput = {
-      age: data.age,
-      salary: data.monthly_income,
-      savings: data.current_savings,
-      investment_value: data.current_savings,
-      risk_tolerance: riskMap[data.risk_tolerance],
-      investment_horizon: horizonMap[data.investment_horizon],
-    };
-
-    toast({
-      title: "Success!",
-      description: "Generating your personalized investment recommendations...",
-    });
-
-    navigate("/recommendations", {
-      state: {
-        questionnaireData: data,
-        modelInput,          // ✅ pass mapped data to Recommendations
-      },
-    });
-
-  } catch (error: any) {
-    toast({
-      title: "Error",
-      description: error.response?.data?.message || error.message || "Something went wrong",
-      variant: "destructive",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const nextStep = async () => {
     const fields = getFieldsForStep(step);
     const isValid = await form.trigger(fields);
-    if (isValid) {
-      setStep(step + 1);
+    if (isValid) setStep((s) => s + 1);
+  };
+
+  const prevStep = () => setStep((s) => s - 1);
+
+  // Validates the current field before moving focus or advancing step
+  const handleFieldEnter = async (
+    e: React.KeyboardEvent,
+    fieldName: keyof QuestionnaireFormData,
+    nextRef?: React.RefObject<HTMLInputElement | HTMLTextAreaElement>,
+    isLastFieldInStep?: boolean
+  ) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+
+    const isValid = await form.trigger(fieldName); // validate THIS field first
+    if (!isValid) return;                          // stop if invalid
+
+    if (nextRef?.current) {
+      nextRef.current.focus();
+    } else if (isLastFieldInStep) {
+      await nextStep();
     }
   };
 
-  const prevStep = () => {
-    setStep(step - 1);
-  };
+  const onSubmit = async (data: QuestionnaireFormData) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const userStr = localStorage.getItem("user");
+      const user = userStr ? JSON.parse(userStr) : null;
 
-  const getFieldsForStep = (currentStep: number): (keyof QuestionnaireFormData)[] => {
-    switch (currentStep) {
-      case 1:
-        return ["age", "occupation", "location"];
-      case 2:
-        return ["monthly_income", "current_savings", "monthly_expenses", "existing_investments"];
-      case 3:
-        return ["investment_objective", "investment_goal_description", "investment_horizon"];
-      case 4:
-        return ["risk_tolerance", "risk_reaction"];
-      default:
-        return [];
+      if (!token || !user?.id) {
+        toast({ title: "Authentication Error", description: "Please log in to continue", variant: "destructive" });
+        navigate("/auth");
+        return;
+      }
+
+      await api.post("/api/questionnaire", {
+        age: data.age,
+        occupation: data.occupation,
+        location: data.location || null,
+        monthly_income: data.monthly_income,
+        current_savings: data.current_savings,
+        monthly_expenses: data.monthly_expenses,
+        existing_investments: data.existing_investments || null,
+        investment_objective: data.investment_objective,
+        investment_goal_description: data.investment_goal_description || null,
+        investment_horizon: data.investment_horizon,
+        risk_tolerance: data.risk_tolerance,
+        risk_reaction: data.risk_reaction,
+      });
+
+      const riskMap: Record<string, string> = { conservative: "Low", balanced: "Medium", aggressive: "High" };
+      const horizonMap: Record<string, string> = { short_term: "Short", medium_term: "Medium", long_term: "Long" };
+
+      const modelInput = {
+        age: data.age,
+        salary: data.monthly_income,
+        savings: data.current_savings,
+        investment_value: data.current_savings,
+        risk_tolerance: riskMap[data.risk_tolerance],
+        investment_horizon: horizonMap[data.investment_horizon],
+      };
+
+      toast({ title: "Success!", description: "Generating your personalized investment recommendations..." });
+      navigate("/recommendations", { state: { questionnaireData: data, modelInput } });
+
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -178,13 +173,13 @@ const Questionnaire = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-3xl">Investment Profile Questionnaire</CardTitle>
-            <CardDescription>
-              Step {step} of 4 - Help us understand your investment needs
-            </CardDescription>
+            <CardDescription>Step {step} of 4 - Help us understand your investment needs</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
+                {/* ── STEP 1 ── */}
                 {step === 1 && (
                   <div className="space-y-4">
                     <h3 className="text-xl font-semibold">Personal Information</h3>
@@ -196,7 +191,12 @@ const Questionnaire = () => {
                         <FormItem>
                           <FormLabel>Age *</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="Enter your age" {...field} />
+                            <Input
+                              type="number"
+                              placeholder="Enter your age"
+                              {...field}
+                              onKeyDown={(e) => handleFieldEnter(e, "age", occupationRef)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -210,7 +210,12 @@ const Questionnaire = () => {
                         <FormItem>
                           <FormLabel>Occupation / Employment Status *</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., Software Engineer, Self-employed" {...field} />
+                            <Input
+                              placeholder="e.g., Software Engineer, Self-employed"
+                              {...field}
+                              ref={occupationRef}
+                              onKeyDown={(e) => handleFieldEnter(e, "occupation", locationRef)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -224,7 +229,12 @@ const Questionnaire = () => {
                         <FormItem>
                           <FormLabel>Location (Optional)</FormLabel>
                           <FormControl>
-                            <Input placeholder="City, Country" {...field} />
+                            <Input
+                              placeholder="City, Country"
+                              {...field}
+                              ref={locationRef}
+                              onKeyDown={(e) => handleFieldEnter(e, "location", undefined, true)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -233,6 +243,7 @@ const Questionnaire = () => {
                   </div>
                 )}
 
+                {/* ── STEP 2 ── */}
                 {step === 2 && (
                   <div className="space-y-4">
                     <h3 className="text-xl font-semibold">Financial Situation</h3>
@@ -244,7 +255,12 @@ const Questionnaire = () => {
                         <FormItem>
                           <FormLabel>Monthly Income ($) *</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="Enter monthly income" {...field} />
+                            <Input
+                              type="number"
+                              placeholder="Enter monthly income"
+                              {...field}
+                              onKeyDown={(e) => handleFieldEnter(e, "monthly_income", savingsRef)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -258,7 +274,13 @@ const Questionnaire = () => {
                         <FormItem>
                           <FormLabel>Current Savings ($) *</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="Enter current savings" {...field} />
+                            <Input
+                              type="number"
+                              placeholder="Enter current savings"
+                              {...field}
+                              ref={savingsRef}
+                              onKeyDown={(e) => handleFieldEnter(e, "current_savings", expensesRef)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -272,7 +294,13 @@ const Questionnaire = () => {
                         <FormItem>
                           <FormLabel>Monthly Expenses ($) *</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="Enter monthly expenses" {...field} />
+                            <Input
+                              type="number"
+                              placeholder="Enter monthly expenses"
+                              {...field}
+                              ref={expensesRef}
+                              onKeyDown={(e) => handleFieldEnter(e, "monthly_expenses", existingInvestmentsRef as any)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -289,6 +317,13 @@ const Questionnaire = () => {
                             <Textarea
                               placeholder="Describe any existing investments (stocks, bonds, real estate, etc.)"
                               {...field}
+                              ref={existingInvestmentsRef}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  // Optional field — no validation needed, just advance
+                                  handleFieldEnter(e, "existing_investments", undefined, true);
+                                }
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -298,6 +333,7 @@ const Questionnaire = () => {
                   </div>
                 )}
 
+                {/* ── STEP 3 ── */}
                 {step === 3 && (
                   <div className="space-y-4">
                     <h3 className="text-xl font-semibold">Investment Goals</h3>
@@ -308,7 +344,13 @@ const Questionnaire = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Investment Objective *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={(val) => {
+                              field.onChange(val);
+                              setTimeout(() => goalDescRef.current?.focus(), 100);
+                            }}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select your objective" />
@@ -335,6 +377,16 @@ const Questionnaire = () => {
                             <Input
                               placeholder="e.g., House, Education, Retirement"
                               {...field}
+                              ref={goalDescRef}
+                              onKeyDown={async (e) => {
+                                if (e.key !== "Enter") return;
+                                e.preventDefault();
+                                // Validate the required objective field before opening horizon
+                                const valid = await form.trigger("investment_objective");
+                                if (valid) {
+                                  document.getElementById("horizon-trigger")?.click();
+                                }
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
@@ -348,9 +400,16 @@ const Questionnaire = () => {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Investment Horizon *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={(val) => {
+                              field.onChange(val);
+                              // Last field in step 3 — auto-advance
+                              setTimeout(() => nextStep(), 300);
+                            }}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger id="horizon-trigger">
                                 <SelectValue placeholder="Select time horizon" />
                               </SelectTrigger>
                             </FormControl>
@@ -367,6 +426,7 @@ const Questionnaire = () => {
                   </div>
                 )}
 
+                {/* ── STEP 4 ── */}
                 {step === 4 && (
                   <div className="space-y-6">
                     <h3 className="text-xl font-semibold">Risk Tolerance</h3>
@@ -379,8 +439,13 @@ const Questionnaire = () => {
                           <FormLabel>If your investment drops 10% in a month, how would you react? *</FormLabel>
                           <FormControl>
                             <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              onValueChange={(val) => {
+                                field.onChange(val);
+                                // Once reaction is picked, scroll focus to next radio group
+                                setTimeout(() => {
+                                  document.getElementById("risk-tolerance-group")?.focus();
+                                }, 100);
+                              }}
                               value={field.value}
                               className="flex flex-col space-y-2"
                             >
@@ -411,8 +476,18 @@ const Questionnaire = () => {
                           <FormLabel>Which statement best describes you? *</FormLabel>
                           <FormControl>
                             <RadioGroup
-                              onValueChange={field.onChange}
-                              value={field.value}
+                              id="risk-tolerance-group"
+                              onValueChange={(val) => {
+                                field.onChange(val);
+                                // Auto-submit only if risk_reaction is also filled
+                                setTimeout(async () => {
+                                  const reactionVal = form.getValues("risk_reaction");
+                                  if (reactionVal) {
+                                    await form.handleSubmit(onSubmit)();
+                                  }
+                                }, 300);
+                              }}
+                              value={field.value || ""}
                               className="flex flex-col space-y-2"
                             >
                               <div className="flex items-center space-x-2">
