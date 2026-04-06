@@ -28,7 +28,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', questionnaireRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api', predictRouter);
-app.use('/api', recommendationsRoute);
+app.use('/api/recommendations', recommendationsRoute);
 app.use('/api/user', userRoutes);
 
 // TEST ROUTE

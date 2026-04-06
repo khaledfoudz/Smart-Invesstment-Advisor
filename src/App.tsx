@@ -11,8 +11,10 @@ import Features from "./pages/Features";
 import NotFound from "./pages/NotFound";
 import Questionnaire from "./pages/Questionnaire";
 import Recommendations from "./pages/Recommendations";
+
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile"; 
+
 
 // Import the new ProtectedRoute
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -32,6 +34,7 @@ const router = createBrowserRouter([
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/questionnaire", element: <Questionnaire /> },
       { path: "/recommendations", element: <Recommendations /> },
+
       { path: "/profile", element: <Profile /> },
     ],
   },
@@ -49,6 +52,5 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
-
 
 export default App;

@@ -95,6 +95,7 @@ const Navbar = () => {
                   </Button>
                 </Link>
                 
+
                 <Link to="/profile">  {/* ← ADD THIS LINK */}
                   <Button size="sm" variant="outline" className="rounded-lg border-primary/20 hover:bg-primary/10">
                     Profile
@@ -158,6 +159,7 @@ const Navbar = () => {
                     </Button>
                   </Link>
                   
+
                   <Link to="/profile" onClick={() => setMobileMenuOpen(false)}>  
                     <Button size="sm" variant="outline" className="rounded-lg border-primary/20 hover:bg-primary/10">
                       Profile
