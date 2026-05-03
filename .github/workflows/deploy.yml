@@ -1,0 +1,72 @@
+name: Build & Push Docker Images
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Get code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Docker builder
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3. Login to DockerHub
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 4. Extract Git SHA for tagging
+      - name: Set image tag
+        id: vars
+        run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      # =========================
+      # BACKEND
+      # =========================
+      - name: Build Backend
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:latest \
+                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:${{ steps.vars.outputs.TAG }} \
+                       ./backend
+
+      - name: Push Backend
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:${{ steps.vars.outputs.TAG }}
+
+      # =========================
+      # ML
+      # =========================
+      - name: Build ML
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:latest \
+                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:${{ steps.vars.outputs.TAG }} \
+                       ./backend/ml
+
+      - name: Push ML
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:${{ steps.vars.outputs.TAG }}
+
+      # =========================
+      # FRONTEND
+      # =========================
+      - name: Build Frontend
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:latest \
+                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:${{ steps.vars.outputs.TAG }} \
+                       .
+
+      - name: Push Frontend
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:${{ steps.vars.outputs.TAG }}
