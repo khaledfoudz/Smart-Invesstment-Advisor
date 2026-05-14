@@ -151,7 +151,7 @@ const Recommendations = () => {
               <Clock className="h-3.5 w-3.5" />
               Last updated {lastUpdated}
             </div>
-          )}
+          )} 
         </div>
 
         {/* ── Risk explanation card ── */}
