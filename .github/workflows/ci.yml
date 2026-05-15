@@ -4,38 +4,46 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [develop, feature/*]
+    branches: [develop, "feature/**"]
 
 jobs:
-  build:
+  lint:
+    name: Lint Frontend
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm install
+      - run: npm run lint
 
-      # Optional: cache Docker layers (faster builds later)
+  build-and-test:
+    name: Build & Test Images
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build Backend
-      - name: Build Backend Image
+      - name: Build Backend
         run: docker build -t smia-backend ./backend
 
-      # Build ML
-      - name: Build ML Image
+      - name: Build ML
         run: docker build -t smia-ml ./backend/ml
 
-      # Build Frontend
-      - name: Build Frontend Image
+      - name: Build Frontend
         run: docker build -t smia-frontend .
 
-      # Sanity check (containers run)
-      - name: Test Backend Container
-        run: docker run -d -p 4000:4000 smia-backend
-
-      - name: Test ML Container
-        run: docker run -d -p 8000:8000 smia-ml
-
-      - name: Test Frontend Container
-        run: docker run -d -p 3000:80 smia-frontend
+      - name: Test Containers Stay Up
+        run: |
+          docker run -d -p 4000:4000 --name smia-backend smia-backend
+          docker run -d -p 8000:8000 --name smia-ml smia-ml
+          docker run -d -p 3000:80  --name smia-frontend smia-frontend
+          sleep 5
+          docker ps | grep smia-backend  || (docker logs smia-backend  && exit 1)
+          docker ps | grep smia-ml       || (docker logs smia-ml       && exit 1)
+          docker ps | grep smia-frontend || (docker logs smia-frontend && exit 1)
