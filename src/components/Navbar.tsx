@@ -46,7 +46,7 @@ const Navbar = () => {
       });
 
       navigate("/");
-    } catch (error: any) {
+    } catch {
       toast({
         title: "Error",
         description: "Logout failed",
