@@ -5,29 +5,36 @@ on:
     branches: [main]
 
 jobs:
-  build-and-push:
+  lint:
+    name: Lint Frontend
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm install
+      - run: npm run lint
+
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: lint
 
     steps:
-      # 1. Get code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Docker builder
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Debug username
-        run: echo "Username is ${{ secrets.DOCKERHUB_USERNAME }}"
-
-      # 3. Login to DockerHub
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 4. Extract Git SHA for tagging
       - name: Set image tag
         id: vars
         run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
@@ -35,41 +42,41 @@ jobs:
       # =========================
       # BACKEND
       # =========================
-      - name: Build Backend
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:latest \
-                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:${{ steps.vars.outputs.TAG }} \
-                       ./backend
-
-      - name: Push Backend
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:${{ steps.vars.outputs.TAG }}
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:${{ steps.vars.outputs.TAG }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:cache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:cache,mode=max
 
       # =========================
       # ML
       # =========================
-      - name: Build ML
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:latest \
-                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:${{ steps.vars.outputs.TAG }} \
-                       ./backend/ml
-
-      - name: Push ML
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:${{ steps.vars.outputs.TAG }}
+      - name: Build & Push ML
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend/ml
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:${{ steps.vars.outputs.TAG }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:cache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:cache,mode=max
 
       # =========================
       # FRONTEND
       # =========================
-      - name: Build Frontend
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:latest \
-                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:${{ steps.vars.outputs.TAG }} \
-                       .
-
-      - name: Push Frontend
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:${{ steps.vars.outputs.TAG }}
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:${{ steps.vars.outputs.TAG }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:cache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:cache,mode=max
