@@ -104,10 +104,11 @@ const Recommendations = () => {
       try {
         const res = await api.post('/api/recommendations/generate', { modelInput });
         setResult(res.data);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { error?: string } }; message?: string };
         toast({
           title:       'Error',
-          description: err.response?.data?.error || 'Failed to generate recommendations',
+          description: error.response?.data?.error || 'Failed to generate recommendations',
           variant:     'destructive',
         });
       } finally {

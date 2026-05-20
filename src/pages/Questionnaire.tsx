@@ -70,7 +70,7 @@ const Questionnaire = () => {
       investment_objective: "wealth_growth",
       investment_goal_description: "",
       investment_horizon: "medium_term",
-      risk_tolerance: undefined as any,
+      risk_tolerance: undefined ,
       risk_reaction: "",
     },
   });
@@ -156,10 +156,11 @@ const Questionnaire = () => {
       toast({ title: "Success!", description: "Generating your personalized investment recommendations..." });
       navigate("/recommendations", { state: { questionnaireData: data, modelInput } });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
       toast({
         title: "Error",
-        description: error.response?.data?.message || error.message || "Something went wrong",
+        description: err.response?.data?.message || err.message || "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -299,7 +300,7 @@ const Questionnaire = () => {
                               placeholder="Enter monthly expenses"
                               {...field}
                               ref={expensesRef}
-                              onKeyDown={(e) => handleFieldEnter(e, "monthly_expenses", existingInvestmentsRef as any)}
+                              onKeyDown={(e) => handleFieldEnter(e, "monthly_expenses", undefined, true)}
                             />
                           </FormControl>
                           <FormMessage />

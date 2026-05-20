@@ -43,8 +43,9 @@ export function useProfile() {
       setError(null);
       const res = await api.get('/api/user/profile');
       setProfile(res.data);
-    } catch (e: any) {
-      setError(e.response?.data?.error || 'Failed to load profile');
+   } catch (e: unknown) {
+  const err = e as { response?: { data?: { error?: string } }; message?: string };
+  setError(err.response?.data?.error || 'Failed to load profile');
     } finally {
       setLoading(false);
     }
