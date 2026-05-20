@@ -2,15 +2,28 @@ import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PriceWidget from "@/components/PriceWidget";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Activity, DollarSign, Loader2 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Activity, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 import { useToast } from "@/hooks/use-toast";
 
-
+interface Investment {
+  investmentId: number;
+  investmentname: string;
+  investmentrisk: string;
+  investment_capital: number;
+  expectedreturn: number;
+  investment_horizon: string;
+}
 
 export default function Dashboard() {
-  const [investments, setInvestments] = useState([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
   const { toast } = useToast();
@@ -18,12 +31,13 @@ export default function Dashboard() {
   useEffect(() => {
     // Get user name from local storage
     const userStr = localStorage.getItem("user");
+
     if (userStr) {
       const user = JSON.parse(userStr);
       setUserName(user.name);
     }
 
-    // Fetch investments from your database
+    // Fetch investments from database
     const fetchInvestments = async () => {
       try {
         const response = await api.get("/api/investments");
@@ -45,55 +59,100 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      
+
       <main className="flex-grow container mx-auto max-w-7xl px-4 pt-28 pb-12">
         <div className="mb-8 animate-fade-in-up">
           <h1 className="text-4xl font-bold mb-2">
-            Welcome back, <span className="text-gradient">{userName || "Investor"}</span>
+            Welcome back,{" "}
+            <span className="text-gradient">
+              {userName || "Investor"}
+            </span>
           </h1>
-          <p className="text-muted-foreground">Here is your daily market overview and available investment options.</p>
+
+          <p className="text-muted-foreground">
+            Here is your daily market overview and available investment
+            options.
+          </p>
         </div>
 
         {/* Market Updates Section */}
         <PriceWidget />
 
         {/* Database Investments Section */}
-        <div className="animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
+        <div
+          className="animate-fade-in-up"
+          style={{ animationDelay: "0.4s" }}
+        >
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
             Available Investment Vehicles
           </h2>
-          
+
           {loading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {investments.map((inv: any) => (
-                <Card key={inv.investmentId} className="border-primary/20 hover:border-primary/50 transition-colors">
+              {investments.map((inv) => (
+                <Card
+                  key={inv.investmentId}
+                  className="border-primary/20 hover:border-primary/50 transition-colors"
+                >
                   <CardHeader>
-                    <CardTitle className="text-xl">{inv.investmentname}</CardTitle>
-                    <CardDescription>Risk Level: <span className="capitalize font-semibold text-foreground">{inv.investmentrisk}</span></CardDescription>
+                    <CardTitle className="text-xl">
+                      {inv.investmentname}
+                    </CardTitle>
+
+                    <CardDescription>
+                      Risk Level:{" "}
+                      <span className="capitalize font-semibold text-foreground">
+                        {inv.investmentrisk}
+                      </span>
+                    </CardDescription>
                   </CardHeader>
+
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Min Capital:</span>
-                      <span className="font-medium">${Number(inv.investment_capital).toLocaleString()}</span>
+                      <span className="text-muted-foreground">
+                        Min Capital:
+                      </span>
+
+                      <span className="font-medium">
+                        $
+                        {Number(
+                          inv.investment_capital
+                        ).toLocaleString()}
+                      </span>
                     </div>
+
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Expected Return:</span>
-                      <span className="font-medium text-green-500">+{inv.expectedreturn}%</span>
+                      <span className="text-muted-foreground">
+                        Expected Return:
+                      </span>
+
+                      <span className="font-medium text-green-500">
+                        +{inv.expectedreturn}%
+                      </span>
                     </div>
+
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Horizon:</span>
-                      <span className="font-medium capitalize">{inv.investment_horizon.replace('_', ' ')}</span>
+                      <span className="text-muted-foreground">
+                        Horizon:
+                      </span>
+
+                      <span className="font-medium capitalize">
+                        {inv.investment_horizon.replace("_", " ")}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
               ))}
+
               {investments.length === 0 && (
-                <p className="text-muted-foreground col-span-full">No investments found in the database yet.</p>
+                <p className="text-muted-foreground col-span-full">
+                  No investments found in the database yet.
+                </p>
               )}
             </div>
           )}

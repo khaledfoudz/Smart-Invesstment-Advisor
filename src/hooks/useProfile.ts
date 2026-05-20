@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import api from '@/lib/axios';
+import { useState, useEffect } from "react";
+import api from "@/lib/axios";
+import { AxiosError } from "axios";
 
 export interface Recommendation {
   investmentname: string;
@@ -26,10 +27,14 @@ export interface UserProfile {
   investment_objective: string | null;
   investment_goal_description: string | null;
   investment_horizon: string | null;
-  risk_tolerance: 'conservative' | 'balanced' | 'aggressive' | null;
+  risk_tolerance: "conservative" | "balanced" | "aggressive" | null;
   risk_reaction: string | null;
   questionnaire_completed_at: string | null;
   recommendations: Recommendation[];
+}
+
+interface ApiErrorResponse {
+  error?: string;
 }
 
 export function useProfile() {
@@ -41,21 +46,35 @@ export function useProfile() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.get('/api/user/profile');
+
+      const res = await api.get<UserProfile>("/api/user/profile");
+
       setProfile(res.data);
-    } catch (e: any) {
-      setError(e.response?.data?.error || 'Failed to load profile');
+    } catch (err) {
+      const error = err as AxiosError<ApiErrorResponse>;
+
+      setError(
+        error.response?.data?.error || "Failed to load profile"
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const updateName = async (name: string) => {
-    await api.put('/api/user/profile', { name });
+    await api.put("/api/user/profile", { name });
     await fetchProfile();
   };
 
-  useEffect(() => { fetchProfile(); }, []);
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
-  return { profile, loading, error, updateName, refetch: fetchProfile };
+  return {
+    profile,
+    loading,
+    error,
+    updateName,
+    refetch: fetchProfile,
+  };
 }
