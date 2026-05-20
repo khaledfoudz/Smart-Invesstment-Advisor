@@ -43,7 +43,7 @@ jobs:
         run: docker build -t smia-backend ./backend
 
       - name: Build ML
-        run: docker build -t smia-ml ./backend/ml
+        run: docker build --no-cache -t smia-ml ./backend/ml
 
       - name: Build Frontend
         run: docker build -t smia-frontend .
