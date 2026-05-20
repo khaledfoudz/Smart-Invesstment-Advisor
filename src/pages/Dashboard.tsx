@@ -7,10 +7,17 @@ import { TrendingUp, TrendingDown, Activity, DollarSign, Loader2 } from "lucide-
 import api from "@/lib/axios";
 import { useToast } from "@/hooks/use-toast";
 
-
+interface Investment {
+  investmentId: string;
+  investmentname: string;
+  investmentrisk: string;
+  investment_capital: number;
+  expectedreturn: number;
+  investment_horizon: string;
+}
 
 export default function Dashboard() {
-  const [investments, setInvestments] = useState([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
   const { toast } = useToast();
@@ -70,7 +77,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {investments.map((inv: any) => (
+              {investments.map((inv: Investment) => (
                 <Card key={inv.investmentId} className="border-primary/20 hover:border-primary/50 transition-colors">
                   <CardHeader>
                     <CardTitle className="text-xl">{inv.investmentname}</CardTitle>
