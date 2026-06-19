@@ -47,13 +47,13 @@ router.post('/signup',
         const token = jwt.sign(
             { id: user.id, email: user.email },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '7d' }
         );
- 
+
         res.status(200).json({ token, user });
 
     }
-   catch(error){
+        catch(error){
     console.error("Signup Error:", error); 
     res.status(500).json({message: 'Internal server error'});
 }
@@ -80,7 +80,7 @@ router.post('/login', async (req, res) => {
         const token = jwt.sign(
             { id: user.id, email: user.email },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '7d' }
         );
 
         // ✅ رجع token + user عشان الفرونت ايند يستخدمهم

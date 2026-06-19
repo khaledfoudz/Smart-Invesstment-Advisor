@@ -479,10 +479,9 @@ const Questionnaire = () => {
                               id="risk-tolerance-group"
                               onValueChange={(val) => {
                                 field.onChange(val);
-                                // Auto-submit only if risk_reaction is also filled
                                 setTimeout(async () => {
                                   const reactionVal = form.getValues("risk_reaction");
-                                  if (reactionVal) {
+                                  if (reactionVal && !loading) {  // ← add !loading guard
                                     await form.handleSubmit(onSubmit)();
                                   }
                                 }, 300);
