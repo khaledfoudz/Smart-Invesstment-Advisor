@@ -4,38 +4,103 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [develop, feature/*]
+    branches: [develop, "feature/**"]
 
 jobs:
-  build:
+  # ── Frontend lint ──────────────────────────────────────────────────────────
+  lint:
+    name: Lint Frontend
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    defaults:
+      run:
+        working-directory: ./frontend   # FIX: was running from repo root — package.json lives here
 
-      # Optional: cache Docker layers (faster builds later)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json  # FIX: must point to the lockfile
+
+      - run: npm ci          # FIX: use ci (reproducible, faster) not install
+      - run: npm run lint
+      - run: npx tsc --noEmit  # NEW: catches type errors before build
+
+  # ── Build & smoke-test all three images ───────────────────────────────────
+  build-and-test:
+    name: Build & Test Images
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Pull LFS files
+        run: git lfs pull
+
+      - name: Verify LFS files
+        run: ls -lh backend/ml/*.pkl
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build Backend
-      - name: Build Backend Image
+      - name: Build backend
         run: docker build -t smia-backend ./backend
 
-      # Build ML
-      - name: Build ML Image
-        run: docker build -t smia-ml ./backend/ml
+      - name: Build ML
+        run: docker build --no-cache -t smia-ml ./backend/ml
 
-      # Build Frontend
-      - name: Build Frontend Image
+      - name: Build frontend
         run: docker build -t smia-frontend .
 
-      # Sanity check (containers run)
-      - name: Test Backend Container
-        run: docker run -d -p 4000:4000 smia-backend
+      - name: Start containers
+        run: |
+          docker run -d -p 4000:4000 \
+            -e DATABASE_URL=postgresql://smia:smia@localhost:5432/smia \
+            -e JWT_SECRET=ci_secret \
+            --name smia-backend smia-backend
 
-      - name: Test ML Container
-        run: docker run -d -p 8000:8000 smia-ml
+          docker run -d -p 8000:8000 \
+            --name smia-ml smia-ml
 
-      - name: Test Frontend Container
-        run: docker run -d -p 3000:80 smia-frontend
+          docker run -d -p 3000:80 \
+            --name smia-frontend smia-frontend
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for backend..."
+          timeout 30 bash -c 'until curl -sf http://localhost:4000/health; do sleep 2; done' \
+            || (echo "Backend health check failed" && docker logs smia-backend && exit 1)
+
+          echo "Waiting for ML service..."
+          timeout 30 bash -c 'until curl -sf http://localhost:8000/health; do sleep 2; done' \
+            || (echo "ML health check failed" && docker logs smia-ml && exit 1)
+
+          echo "Waiting for frontend..."
+          timeout 20 bash -c 'until curl -sf http://localhost:3000; do sleep 2; done' \
+            || (echo "Frontend not responding" && docker logs smia-frontend && exit 1)
+
+      # FIX: replaced bare "docker ps | grep" with real endpoint checks
+      - name: Smoke test — backend
+        run: curl -sf http://localhost:4000/health | jq .
+
+      - name: Smoke test — ML service
+        run: curl -sf http://localhost:8000/health | jq .
+
+      - name: Print logs on failure
+        if: failure()
+        run: |
+          docker logs smia-backend  2>&1 | tail -30 || true
+          docker logs smia-ml       2>&1 | tail -30 || true
+          docker logs smia-frontend 2>&1 | tail -30 || true
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f smia-backend smia-ml smia-frontend 2>/dev/null || true

@@ -3,73 +3,108 @@ name: Build & Push Docker Images
 on:
   push:
     branches: [main]
+  workflow_dispatch:   # NEW: lets you trigger a deploy from the GitHub UI without a push
 
 jobs:
   build-and-push:
+    name: Build & Push Images
     runs-on: ubuntu-latest
 
-    steps:
-      # 1. Get code
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    outputs:
+      image_tag: ${{ steps.vars.outputs.TAG }}
 
-      # 2. Set up Docker builder
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4      # FIX: v3 → v4 (consistent with ci.yml)
+        with:
+          lfs: true
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Debug username
-        run: echo "Username is ${{ secrets.DOCKERHUB_USERNAME }}"
-
-      # 3. Login to DockerHub
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 4. Extract Git SHA for tagging
       - name: Set image tag
         id: vars
         run: echo "TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      # =========================
-      # BACKEND
-      # =========================
-      - name: Build Backend
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:latest \
-                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:${{ steps.vars.outputs.TAG }} \
-                       ./backend
+      # ── Backend ───────────────────────────────────────────────────────────
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:${{ steps.vars.outputs.TAG }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:cache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:cache,mode=max
 
-      - name: Push Backend
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-backend:${{ steps.vars.outputs.TAG }}
+      # ── ML Service ────────────────────────────────────────────────────────
+      - name: Build & Push ML
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend/ml
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:${{ steps.vars.outputs.TAG }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:cache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:cache,mode=max
 
-      # =========================
-      # ML
-      # =========================
-      - name: Build ML
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:latest \
-                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:${{ steps.vars.outputs.TAG }} \
-                       ./backend/ml
+      # ── Frontend ──────────────────────────────────────────────────────────
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:${{ steps.vars.outputs.TAG }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:cache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:cache,mode=max
 
-      - name: Push ML
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-ml:${{ steps.vars.outputs.TAG }}
+  # ── EC2 deploy (Phase 2 — uncomment when Terraform is done) ──────────────
+  # deploy-ec2:
+  #   name: Deploy to EC2
+  #   runs-on: ubuntu-latest
+  #   needs: build-and-push
+  #   steps:
+  #     - uses: appleboy/ssh-action@v1
+  #       with:
+  #         host: ${{ secrets.EC2_HOST }}
+  #         username: ubuntu
+  #         key: ${{ secrets.EC2_SSH_KEY }}
+  #         script: |
+  #           cd /opt/smia
+  #           export IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
+  #           sed -i "s/IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env
+  #           docker compose pull
+  #           docker compose up -d --no-deps --remove-orphans
+  #           sleep 10
+  #           curl -sf http://localhost:4000/health || exit 1
 
-      # =========================
-      # FRONTEND
-      # =========================
-      - name: Build Frontend
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:latest \
-                       -t ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:${{ steps.vars.outputs.TAG }} \
-                       .
+  # ── Job summary (NEW) ────────────────────────────────────────────────────
+  summary:
+    name: Summary
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: always()
 
-      - name: Push Frontend
+    steps:
+      - name: Write deploy summary
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/smia-frontend:${{ steps.vars.outputs.TAG }}
+          TAG=${{ needs.build-and-push.outputs.image_tag }}
+          STATUS=${{ needs.build-and-push.result }}
+          echo "## Deploy summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | Tag | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| smia-backend  | \`$TAG\` | $STATUS |" >> $GITHUB_STEP_SUMMARY
+          echo "| smia-ml       | \`$TAG\` | $STATUS |" >> $GITHUB_STEP_SUMMARY
+          echo "| smia-frontend | \`$TAG\` | $STATUS |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Triggered by @${{ github.actor }} on \`$(date -u +%Y-%m-%d\ %H:%M)\ UTC\`" >> $GITHUB_STEP_SUMMARY

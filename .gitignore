@@ -30,7 +30,6 @@ backend/ml/packages/
 
 # ===== ADD THESE =====
 # Large ML model files (store externally e.g. Google Drive / S3)
-*.pkl
 *.pickle
 
 # Large dataset files
