@@ -1,0 +1,27 @@
+---
+# ── Project identity ─────────────────────────────────────────────────────────
+project_name: smia
+dockerhub_username: mazenfarouk
+
+# ── Image tags (matches what deploy.yml pushes to DockerHub) ─────────────────
+image_tag: latest
+
+frontend_image:  "{{ dockerhub_username }}/smia-frontend:{{ image_tag }}"
+backend_image:   "{{ dockerhub_username }}/smia-backend:{{ image_tag }}"
+ml_image:        "{{ dockerhub_username }}/smia-ml:{{ image_tag }}"
+
+# ── App ports ─────────────────────────────────────────────────────────────────
+frontend_port:  80
+backend_port:   4000
+ml_port:        8000
+
+# ── Deploy path on the EC2 ────────────────────────────────────────────────────
+app_dir: /opt/smia
+
+# ── Database (PostgreSQL runs as a Docker container) ─────────────────────────
+db_name:     smia_db
+db_user:     smia_user
+db_password: "{{ vault_db_password }}"   # set in ansible-vault or env
+
+# ── JWT / secrets (override with ansible-vault in production) ────────────────
+jwt_secret:  "{{ vault_jwt_secret }}"

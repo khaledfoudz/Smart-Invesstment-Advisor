@@ -1,0 +1,24 @@
+---
+# ── SMIA Master Playbook ──────────────────────────────────────────────────────
+# Usage:
+#   ansible-playbook site.yml                          # full deploy
+#   ansible-playbook site.yml --tags docker            # install Docker only
+#   ansible-playbook site.yml --tags app               # redeploy app only
+#   ansible-playbook site.yml --tags app -e "image_tag=abc1234"  # deploy specific SHA
+
+- name: Configure SMIA production server
+  hosts: smia_servers
+  become: true
+  gather_facts: true
+
+  vars:
+    # Override secrets here or pass via --extra-vars / ansible-vault
+    vault_db_password: "SmiaDB@2026!"   # CHANGE THIS — use ansible-vault in real prod
+    vault_jwt_secret:  "smia-jwt-super-secret-2026"  # CHANGE THIS
+
+  roles:
+    - role: docker
+      tags: [docker, setup]
+
+    - role: app
+      tags: [app, deploy]

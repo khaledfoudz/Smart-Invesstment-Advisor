@@ -145,5 +145,4 @@ CREATE TABLE IF NOT EXISTS public.results
     CONSTRAINT results_answersid_fkey FOREIGN KEY (answersid)
         REFERENCES public.questionnaire (answersid)
         ON DELETE CASCADE
->>>>>>> acc3d6563b921aecfe46969c902f49bc1a6ab60e
 );

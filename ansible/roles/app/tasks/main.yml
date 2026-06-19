@@ -1,0 +1,64 @@
+---
+# ── Role: app ────────────────────────────────────────────────────────────────
+# Deploys the SMIA application stack via Docker Compose
+
+- name: Create app directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+
+- name: Deploy docker-compose.yml from template
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ app_dir }}/docker-compose.yml"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+  notify: restart app
+
+- name: Deploy .env file from template
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0600'
+  notify: restart app
+
+- name: Pull latest images from DockerHub
+  ansible.builtin.command: docker compose pull
+  args:
+    chdir: "{{ app_dir }}"
+  register: pull_result
+  changed_when: "'Pulled' in pull_result.stdout or 'pulled' in pull_result.stderr"
+
+- name: Start (or restart) the application stack
+  ansible.builtin.command: docker compose up -d --remove-orphans
+  args:
+    chdir: "{{ app_dir }}"
+  register: compose_result
+  changed_when: "'Started' in compose_result.stdout or 'Created' in compose_result.stdout"
+
+- name: Wait for backend health check
+  ansible.builtin.uri:
+    url: "http://localhost:{{ backend_port }}/health"
+    method: GET
+    status_code: 200
+  register: health
+  retries: 10
+  delay: 6
+  until: health.status == 200
+
+- name: Print running containers
+  ansible.builtin.command: docker compose ps
+  args:
+    chdir: "{{ app_dir }}"
+  register: ps_output
+  changed_when: false
+
+- name: Show container status
+  ansible.builtin.debug:
+    msg: "{{ ps_output.stdout_lines }}"

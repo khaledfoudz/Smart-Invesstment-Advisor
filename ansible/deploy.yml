@@ -1,0 +1,21 @@
+---
+# ── Quick redeploy playbook ───────────────────────────────────────────────────
+# Pulls latest images and restarts containers — skips Docker install.
+# Called by Jenkins in Phase 4.
+#
+# Usage:
+#   ansible-playbook deploy.yml
+#   ansible-playbook deploy.yml -e "image_tag=abc1234"
+
+- name: Redeploy SMIA application
+  hosts: smia_servers
+  become: true
+  gather_facts: false
+
+  vars:
+    vault_db_password: "SmiaDB@2026!"
+    vault_jwt_secret:  "smia-jwt-super-secret-2026"
+
+  roles:
+    - role: app
+      tags: [app, deploy]
