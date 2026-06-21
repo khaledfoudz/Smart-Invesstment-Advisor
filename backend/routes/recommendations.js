@@ -5,36 +5,39 @@ import { authMiddleware } from './auth.js';
 const router = express.Router();
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://ml:8000';
 
-// Map ML recommendation string → investment name keywords
-const KEYWORD_MAP = {
-  stocks:       ['stock'],
-  bonds:        ['bond'],
-  etf:          ['etf', 'index', 'market'],
-  crypto:       ['crypto'],
-  'real estate':['real estate', 'reit'],
-  'money market':['money market'],
-};
+// horizon is years (2–15), bucket it the same way the investments table does
+function mapHorizon(years) {
+  const n = Number(years);
+  if (n <= 3) return 'Short';
+  if (n <= 7) return 'Medium';
+  return 'Long';
+}
 
-function scoreInvestments(recommendation, dbRisk, dbHorizon, investments) {
-  const rec = recommendation.toLowerCase();
+// The ML service now returns specific instrument names (e.g. "EGX30 Index Fund")
+// pulled from the historical dataset, which won't match 1:1 against our
+// investments table's names (e.g. "EGX30 Blue Chip Stocks"). Match on keywords
+// instead of exact strings.
+function buildKeywords(name) {
+  return name
+    .toLowerCase()
+    .replace(/[()]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 3); // skip short filler words like "of", "the"
+}
+
+function scoreInvestments(investmentNames, dbRisk, investments) {
+  const allKeywords = investmentNames.flatMap(buildKeywords);
 
   return investments
     .map(inv => {
       let score = 0;
       const name = inv.investmentname.toLowerCase();
 
-      // keyword match with ML recommendation
-      for (const [key, keywords] of Object.entries(KEYWORD_MAP)) {
-        if (rec.includes(key)) {
-          if (keywords.some(k => name.includes(k))) score += 50;
-        }
+      for (const kw of allKeywords) {
+        if (name.includes(kw)) score += 40;
       }
 
-      // risk level match
       if (inv.investmentrisk === dbRisk) score += 30;
-
-      // horizon match
-      if (inv.investment_horizon.toLowerCase() === dbHorizon.toLowerCase()) score += 20;
 
       return { ...inv, score };
     })
@@ -52,7 +55,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'modelInput is required' });
     }
 
-    // 1. Call ML service
+    // 1. Call ML service — it now classifies risk itself
     const mlRes = await fetch(`${ML_SERVICE_URL}/predict`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -64,12 +67,19 @@ router.post('/generate', authMiddleware, async (req, res) => {
       return res.status(500).json({ error: 'ML service error', detail: err });
     }
 
-    const { recommendation } = await mlRes.json();
+    const {
+      recommendation,
+      investor_profile,
+      dbRisk,
+      confidence,
+      other_options = [],
+    } = await mlRes.json();
 
-    // 2. Get user's questionnaire answers
+    const dbHorizon = mapHorizon(modelInput.horizon);
+
+    // 2. Get user's questionnaire row (just need answersid)
     const { rows: qRows } = await pool.query(
-      `SELECT answersid, risk_tolerance, investment_horizon
-       FROM public.questionnaire WHERE user_id = $1`,
+      `SELECT answersid FROM public.questionnaire WHERE user_id = $1`,
       [userId]
     );
 
@@ -77,18 +87,13 @@ router.post('/generate', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Complete the questionnaire first' });
     }
 
-    const { answersid, risk_tolerance, investment_horizon } = qRows[0];
+    const { answersid } = qRows[0];
 
-    const riskMap    = { conservative: 'Low', balanced: 'Medium', aggressive: 'High' };
-    const horizonMap = { short_term: 'Short', medium_term: 'Medium', long_term: 'Long' };
-    const dbRisk     = riskMap[risk_tolerance]    || 'Medium';
-    const dbHorizon  = horizonMap[investment_horizon] || 'Medium';
-
-    // 3. Get all investments and score them
+    // 3. Match the ML model's recommended instrument(s) to our investments table
     const { rows: allInvestments } = await pool.query('SELECT * FROM public.investments');
-    let matched = scoreInvestments(recommendation, dbRisk, dbHorizon, allInvestments);
+    let matched = scoreInvestments([recommendation, ...other_options], dbRisk, allInvestments);
 
-    // Fallback: if nothing matched by keyword, use risk level only
+    // Fallback: nothing matched by name, use risk level only
     if (matched.length === 0) {
       matched = allInvestments
         .filter(inv => inv.investmentrisk === dbRisk)
@@ -96,10 +101,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
         .sort((a, b) => b.score - a.score);
     }
 
-    const topMatches  = matched.slice(0, 4);
-    const totalScore  = topMatches.reduce((s, m) => s + m.score, 0);
+    const topMatches = matched.slice(0, 4);
+    const totalScore = topMatches.reduce((s, m) => s + m.score, 0);
 
-    // 4. Clear old results for this user, insert new ones
+    // 4. Clear old results, insert new ones
     await pool.query('DELETE FROM public.results WHERE userid = $1', [userId]);
 
     const savedInvestments = [];
@@ -116,18 +121,20 @@ router.post('/generate', authMiddleware, async (req, res) => {
       );
 
       savedInvestments.push({
-        investmentname:    match.investmentname,
-        investmentrisk:    match.investmentrisk,
+        investmentname:     match.investmentname,
+        investmentrisk:     match.investmentrisk,
         investment_capital: match.investment_capital,
         investment_horizon: match.investment_horizon,
-        expectedreturn:    match.expectedreturn,
-        confidencescore:   confidenceScore,
-        resultsdate:       inserted[0].resultsdate,
+        expectedreturn:     match.expectedreturn,
+        confidencescore:    confidenceScore,
+        resultsdate:        inserted[0].resultsdate,
       });
     }
 
     res.json({
       recommendation,
+      investorProfile: investor_profile,
+      confidence,
       dbRisk,
       dbHorizon,
       investments: savedInvestments,

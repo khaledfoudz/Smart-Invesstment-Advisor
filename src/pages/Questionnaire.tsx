@@ -16,26 +16,45 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import api from "@/lib/axios";
 
 const questionnaireSchema = z.object({
+  // ── Step 1: Personal (kept, no model counterpart) ──
   age: z.coerce.number({ invalid_type_error: "Age is required" }).min(18, "Must be at least 18").max(100),
   occupation: z.string().min(2, "Occupation is required"),
   location: z.string().optional(),
+
+  // ── Step 2: Financial ──
   monthly_income: z.coerce.number({ invalid_type_error: "Income is required" }).min(0),
   current_savings: z.coerce.number({ invalid_type_error: "Savings are required" }).min(0),
   monthly_expenses: z.coerce.number({ invalid_type_error: "Expenses are required" }).min(0),
+  debt: z.coerce.number({ invalid_type_error: "Debt is required" }).min(0),
+  dependents: z.coerce.number({ invalid_type_error: "Number of dependents is required" }).int().min(0),
   investment_amount: z.coerce.number({ invalid_type_error: "Investment amount is required" }).min(0),
   existing_investments: z.string().optional(),
+
+  // ── Step 3: Investment Goals ──
   investment_objective: z.enum(["wealth_growth", "regular_income", "specific_goal"], {
     errorMap: () => ({ message: "Please select an objective" }),
   }),
   investment_goal_description: z.string().optional(),
-  investment_horizon: z.enum(["short_term", "medium_term", "long_term"], {
-    errorMap: () => ({ message: "Please select a horizon" }),
-  }),
+  horizon: z.enum(
+    ["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"],
+    { errorMap: () => ({ message: "Please select your investment horizon" }) }
+  ),
+
+  // ── Step 4: Risk Profile ──
   risk_tolerance: z.enum(["conservative", "balanced", "aggressive"], {
     errorMap: () => ({ message: "Please select your risk tolerance" }),
   }),
-  risk_reaction: z.enum(["sell_all", "sell_some", "hold", "buy_more"], {
-    errorMap: () => ({ message: "Please select your reaction" }),
+  reaction: z.enum(["1", "2", "3", "4", "5"], {
+    errorMap: () => ({ message: "Please select how you'd react" }),
+  }),
+  experience: z.enum(["1", "2", "3", "4", "5"], {
+    errorMap: () => ({ message: "Please select your investment experience" }),
+  }),
+  liquidity: z.enum(["1", "2", "3", "4", "5"], {
+    errorMap: () => ({ message: "Please select your liquidity need" }),
+  }),
+  volatility: z.enum(["1", "2", "3", "4", "5"], {
+    errorMap: () => ({ message: "Please select your familiarity with volatility" }),
   }),
 });
 
@@ -43,9 +62,9 @@ type QuestionnaireFormData = z.infer<typeof questionnaireSchema>;
 
 const stepFields: Record<number, (keyof QuestionnaireFormData)[]> = {
   1: ["age", "occupation", "location"],
-  2: ["monthly_income", "current_savings", "monthly_expenses", "investment_amount", "existing_investments"],
-  3: ["investment_objective", "investment_goal_description", "investment_horizon"],
-  4: ["risk_tolerance", "risk_reaction"],
+  2: ["monthly_income", "current_savings", "monthly_expenses", "debt", "dependents", "investment_amount", "existing_investments"],
+  3: ["investment_objective", "investment_goal_description", "horizon"],
+  4: ["risk_tolerance", "reaction", "experience", "liquidity", "volatility"],
 };
 
 const Questionnaire = () => {
@@ -61,6 +80,8 @@ const Questionnaire = () => {
   const locationRef   = useRef<HTMLInputElement>(null);
   const savingsRef    = useRef<HTMLInputElement>(null);
   const expensesRef   = useRef<HTMLInputElement>(null);
+  const debtRef       = useRef<HTMLInputElement>(null);
+  const dependentsRef = useRef<HTMLInputElement>(null);
   const investAmtRef  = useRef<HTMLInputElement>(null);
   const goalDescRef   = useRef<HTMLInputElement>(null);
 
@@ -73,13 +94,18 @@ const Questionnaire = () => {
       monthly_income: undefined,
       current_savings: undefined,
       monthly_expenses: undefined,
+      debt: undefined,
+      dependents: undefined,
       investment_amount: undefined,
       existing_investments: "",
       investment_objective: undefined,
       investment_goal_description: "",
-      investment_horizon: undefined,
+      horizon: undefined,
       risk_tolerance: undefined,
-      risk_reaction: undefined,
+      reaction: undefined,
+      experience: undefined,
+      liquidity: undefined,
+      volatility: undefined,
     },
   });
 
@@ -133,25 +159,32 @@ const Questionnaire = () => {
         monthly_income: data.monthly_income,
         current_savings: data.current_savings,
         monthly_expenses: data.monthly_expenses,
+        debt: data.debt,
+        dependents: data.dependents,
         investment_amount: data.investment_amount,
         existing_investments: data.existing_investments || null,
         investment_objective: data.investment_objective,
         investment_goal_description: data.investment_goal_description || null,
-        investment_horizon: data.investment_horizon,
+        horizon: Number(data.horizon),
         risk_tolerance: data.risk_tolerance,
-        risk_reaction: data.risk_reaction,
+        reaction: Number(data.reaction),
+        experience: Number(data.experience),
+        liquidity: Number(data.liquidity),
+        volatility: Number(data.volatility),
       });
 
-      const riskMap: Record<string, string> = { conservative: "Low", balanced: "Medium", aggressive: "High" };
-      const horizonMap: Record<string, string> = { short_term: "Short", medium_term: "Medium", long_term: "Long" };
-
+      // Mirrors the script's variable names exactly for the model input
       const modelInput = {
-        age: data.age,
-        salary: data.monthly_income,
+        income: data.monthly_income,
         savings: data.current_savings,
-        investment_value: data.investment_amount,
-        risk_tolerance: riskMap[data.risk_tolerance],
-        investment_horizon: horizonMap[data.investment_horizon],
+        expenses: data.monthly_expenses,
+        debt: data.debt,
+        dependents: data.dependents,
+        horizon: Number(data.horizon),
+        reaction: Number(data.reaction),
+        experience: Number(data.experience),
+        liquidity: Number(data.liquidity),
+        volatility: Number(data.volatility),
       };
 
       toast({ title: "Success!", description: "Generating your personalized investment recommendations..." });
@@ -231,7 +264,7 @@ const Questionnaire = () => {
 
                     <FormField control={form.control} name="monthly_income" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Monthly Income (EGP) *</FormLabel>
+                        <FormLabel>Monthly Net Income (EGP) *</FormLabel>
                         <FormControl>
                           <Input type="number" placeholder="e.g. 15000" {...field} value={field.value ?? ""}
                             onKeyDown={(e) => handleFieldEnter(e, "monthly_income", savingsRef)} />
@@ -242,7 +275,7 @@ const Questionnaire = () => {
 
                     <FormField control={form.control} name="current_savings" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Current Savings (EGP) *</FormLabel>
+                        <FormLabel>Total Liquid Savings (EGP) *</FormLabel>
                         <FormControl>
                           <Input type="number" placeholder="e.g. 50000" {...field} value={field.value ?? ""}
                             ref={savingsRef} onKeyDown={(e) => handleFieldEnter(e, "current_savings", expensesRef)} />
@@ -253,10 +286,32 @@ const Questionnaire = () => {
 
                     <FormField control={form.control} name="monthly_expenses" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Monthly Expenses (EGP) *</FormLabel>
+                        <FormLabel>Monthly Fixed Expenses (EGP) *</FormLabel>
                         <FormControl>
                           <Input type="number" placeholder="e.g. 8000" {...field} value={field.value ?? ""}
-                            ref={expensesRef} onKeyDown={(e) => handleFieldEnter(e, "monthly_expenses", investAmtRef)} />
+                            ref={expensesRef} onKeyDown={(e) => handleFieldEnter(e, "monthly_expenses", debtRef)} />
+                        </FormControl>
+                        {showErrors && <FormMessage />}
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="debt" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Outstanding Debt (EGP) *</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="e.g. 0" {...field} value={field.value ?? ""}
+                            ref={debtRef} onKeyDown={(e) => handleFieldEnter(e, "debt", dependentsRef)} />
+                        </FormControl>
+                        {showErrors && <FormMessage />}
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="dependents" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Financial Dependents *</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="e.g. 0" {...field} value={field.value ?? ""}
+                            ref={dependentsRef} onKeyDown={(e) => handleFieldEnter(e, "dependents", investAmtRef)} />
                         </FormControl>
                         {showErrors && <FormMessage />}
                       </FormItem>
@@ -320,17 +375,17 @@ const Questionnaire = () => {
                       )} />
                     )}
 
-                    <FormField control={form.control} name="investment_horizon" render={({ field }) => (
+                    <FormField control={form.control} name="horizon" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Investment Horizon *</FormLabel>
+                        <FormLabel>Investment Horizon (years) *</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a time horizon" /></SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select a horizon (2–15 years)" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="short_term">Short Term — less than 2 years</SelectItem>
-                            <SelectItem value="medium_term">Medium Term — 2 to 5 years</SelectItem>
-                            <SelectItem value="long_term">Long Term — 5+ years</SelectItem>
+                            {Array.from({ length: 14 }, (_, i) => i + 2).map((yr) => (
+                              <SelectItem key={yr} value={String(yr)}>{yr} {yr === 1 ? "year" : "years"}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         {showErrors && <FormMessage />}
@@ -361,20 +416,76 @@ const Questionnaire = () => {
                       </FormItem>
                     )} />
 
-                    <FormField control={form.control} name="risk_reaction" render={({ field }) => (
+                    <FormField control={form.control} name="reaction" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>If your portfolio dropped 20% in a month, you would… *</FormLabel>
+                        <FormLabel>If your investment lost 20% in a month, how would you react? *</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-
                             <SelectTrigger><SelectValue placeholder="Select your reaction" /></SelectTrigger>
-
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="sell_all">Sell everything — cut losses and get out</SelectItem>
-                            <SelectItem value="sell_some">Sell some — reduce exposure but stay partially in</SelectItem>
-                            <SelectItem value="hold">Hold — stay put and wait for recovery</SelectItem>
-                            <SelectItem value="buy_more">Buy more — it's a discount, increase the position</SelectItem>
+                            <SelectItem value="1">1 — Sell immediately</SelectItem>
+                            <SelectItem value="2">2 — Sell most of it</SelectItem>
+                            <SelectItem value="3">3 — Hold and wait</SelectItem>
+                            <SelectItem value="4">4 — Hold and watch closely</SelectItem>
+                            <SelectItem value="5">5 — Buy more</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {showErrors && <FormMessage />}
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="experience" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Investment Experience *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Select your experience level" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="1">1 — None</SelectItem>
+                            <SelectItem value="2">2 — Limited</SelectItem>
+                            <SelectItem value="3">3 — Moderate</SelectItem>
+                            <SelectItem value="4">4 — Experienced</SelectItem>
+                            <SelectItem value="5">5 — Expert</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {showErrors && <FormMessage />}
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="liquidity" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>How soon might you need access to this money? *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Select your liquidity need" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="1">1 — Anytime</SelectItem>
+                            <SelectItem value="2">2 — Within a few months</SelectItem>
+                            <SelectItem value="3">3 — Within a year or two</SelectItem>
+                            <SelectItem value="4">4 — Several years</SelectItem>
+                            <SelectItem value="5">5 — Not for a long time</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {showErrors && <FormMessage />}
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="volatility" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>How familiar are you with market volatility? *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Select your familiarity level" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="1">1 — Very low</SelectItem>
+                            <SelectItem value="2">2 — Low</SelectItem>
+                            <SelectItem value="3">3 — Moderate</SelectItem>
+                            <SelectItem value="4">4 — High</SelectItem>
+                            <SelectItem value="5">5 — Very high</SelectItem>
                           </SelectContent>
                         </Select>
                         {showErrors && <FormMessage />}

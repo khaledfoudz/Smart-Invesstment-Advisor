@@ -106,12 +106,18 @@ CREATE TABLE IF NOT EXISTS public.questionnaire
     monthly_income              numeric   NOT NULL,
     current_savings             numeric   NOT NULL,
     monthly_expenses            numeric   NOT NULL,
+    debt                        numeric   NOT NULL,
+    dependents                  integer   NOT NULL,
+    investment_amount           numeric   NOT NULL,
     existing_investments        text,
     investment_objective        text      NOT NULL,
     investment_goal_description text,
-    investment_horizon          text      NOT NULL,
+    horizon                     integer   NOT NULL,
     risk_tolerance              text      NOT NULL,
-    risk_reaction               text      NOT NULL,
+    reaction                    integer   NOT NULL,
+    experience                  integer   NOT NULL,
+    liquidity                   integer   NOT NULL,
+    volatility                  integer   NOT NULL,
     created_at                  timestamp DEFAULT now(),
 
     CONSTRAINT questionnaire_pkey       PRIMARY KEY (answersid),
@@ -145,5 +151,4 @@ CREATE TABLE IF NOT EXISTS public.results
     CONSTRAINT results_answersid_fkey FOREIGN KEY (answersid)
         REFERENCES public.questionnaire (answersid)
         ON DELETE CASCADE
->>>>>>> acc3d6563b921aecfe46969c902f49bc1a6ab60e
 );

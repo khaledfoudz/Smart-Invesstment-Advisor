@@ -15,12 +15,18 @@ router.post('/questionnaire', authMiddleware, async (req, res) => {
         monthly_income,
         current_savings,
         monthly_expenses,
+        debt,
+        dependents,
+        investment_amount,
         existing_investments,
         investment_objective,
         investment_goal_description,
-        investment_horizon,
+        horizon,
         risk_tolerance,
-        risk_reaction,
+        reaction,
+        experience,
+        liquidity,
+        volatility,
         } = req.body;
 
         await pool.query(
@@ -33,15 +39,21 @@ router.post('/questionnaire', authMiddleware, async (req, res) => {
             monthly_income,
             current_savings,
             monthly_expenses,
+            debt,
+            dependents,
+            investment_amount,
             existing_investments,
             investment_objective,
             investment_goal_description,
-            investment_horizon,
+            horizon,
             risk_tolerance,
-            risk_reaction
+            reaction,
+            experience,
+            liquidity,
+            volatility
         )
         VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
         )
         ON CONFLICT (user_id) DO UPDATE SET
             age = EXCLUDED.age,
@@ -50,12 +62,18 @@ router.post('/questionnaire', authMiddleware, async (req, res) => {
             monthly_income = EXCLUDED.monthly_income,
             current_savings = EXCLUDED.current_savings,
             monthly_expenses = EXCLUDED.monthly_expenses,
+            debt = EXCLUDED.debt,
+            dependents = EXCLUDED.dependents,
+            investment_amount = EXCLUDED.investment_amount,
             existing_investments = EXCLUDED.existing_investments,
             investment_objective = EXCLUDED.investment_objective,
             investment_goal_description = EXCLUDED.investment_goal_description,
-            investment_horizon = EXCLUDED.investment_horizon,
+            horizon = EXCLUDED.horizon,
             risk_tolerance = EXCLUDED.risk_tolerance,
-            risk_reaction = EXCLUDED.risk_reaction,
+            reaction = EXCLUDED.reaction,
+            experience = EXCLUDED.experience,
+            liquidity = EXCLUDED.liquidity,
+            volatility = EXCLUDED.volatility,
             created_at = NOW()
         `,
         [
@@ -66,12 +84,18 @@ router.post('/questionnaire', authMiddleware, async (req, res) => {
             monthly_income,
             current_savings,
             monthly_expenses,
+            debt,
+            dependents,
+            investment_amount,
             existing_investments || null,
             investment_objective,
             investment_goal_description || null,
-            investment_horizon,
+            horizon,
             risk_tolerance,
-            risk_reaction,
+            reaction,
+            experience,
+            liquidity,
+            volatility,
         ]
         );
 
